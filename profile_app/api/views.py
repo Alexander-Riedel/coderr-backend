@@ -82,13 +82,16 @@ class BusinessProfileListView(ListAPIView):
     
     authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
-        for item in response.data:
-            for field in ['first_name', 'last_name', 'location', 'tel', 'description', 'working_hours']:
-                if item.get(field) is None:
-                    item[field] = ""
+        results = response.data if isinstance(response.data, list) else response.data.get('results', [])
+        if isinstance(results, list):
+            for item in results:
+                for field in ['first_name', 'last_name', 'location', 'tel', 'description', 'working_hours']:
+                    if item.get(field) is None:
+                        item[field] = ""
         return response
 
 
@@ -98,11 +101,14 @@ class CustomerProfileListView(ListAPIView):
 
     authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
-        for item in response.data:
-            for field in ['first_name', 'last_name', 'location', 'tel', 'description', 'working_hours']:
-                if item.get(field) is None:
-                    item[field] = ""
+        results = response.data if isinstance(response.data, list) else response.data.get('results', [])
+        if isinstance(results, list):
+            for item in results:
+                for field in ['first_name', 'last_name', 'location', 'tel', 'description', 'working_hours']:
+                    if item.get(field) is None:
+                        item[field] = ""
         return response
