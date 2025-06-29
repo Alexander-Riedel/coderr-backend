@@ -4,7 +4,7 @@ from profile_app.models import BusinessProfile, CustomerProfile
 
 class BusinessProfileSerializer(serializers.ModelSerializer):
     user = serializers.IntegerField(source='user.id', read_only=True)
-    username = serializers.CharField(default='')
+    username = serializers.CharField(default='', read_only=True)
     first_name = serializers.CharField(default='')
     last_name = serializers.CharField(default='')
     location = serializers.CharField(default='')
@@ -32,7 +32,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
     user = serializers.IntegerField(source='user.id', read_only=True)
-    username = serializers.CharField(default='')
+    username = serializers.CharField(default='', read_only=True)
     first_name = serializers.CharField(default='')
     last_name = serializers.CharField(default='')
     location = serializers.CharField(default='')

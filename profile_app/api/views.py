@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.generics import ListAPIView
 from django.contrib.auth.models import User
 from profile_app.models import BusinessProfile, CustomerProfile
@@ -13,6 +14,7 @@ class IsOwner(permissions.BasePermission):
 
 
 class UserProfileDetailView(APIView):
+    authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def get_profile(self, pk):
@@ -77,6 +79,8 @@ class UserProfileDetailView(APIView):
 class BusinessProfileListView(ListAPIView):
     queryset = BusinessProfile.objects.all()
     serializer_class = BusinessProfileSerializer
+    
+    authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request, *args, **kwargs):
@@ -91,6 +95,8 @@ class BusinessProfileListView(ListAPIView):
 class CustomerProfileListView(ListAPIView):
     queryset = CustomerProfile.objects.all()
     serializer_class = CustomerProfileSerializer
+
+    authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request, *args, **kwargs):
