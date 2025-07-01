@@ -3,8 +3,8 @@ from orders_app.models import Order
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    customer_user = serializers.IntegerField(read_only=True)
-    business_user = serializers.IntegerField(read_only=True)
+    customer_user = serializers.PrimaryKeyRelatedField(read_only=True)
+    business_user = serializers.PrimaryKeyRelatedField(read_only=True)
     offer_type = serializers.CharField(read_only=True)
     title = serializers.CharField(read_only=True)
     revisions = serializers.IntegerField(read_only=True)
@@ -28,4 +28,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = fields
+        read_only_fields = [
+            'id', 'customer_user', 'business_user', 'title',
+            'revisions', 'delivery_time_in_days', 'price', 'features',
+            'offer_type', 'created_at', 'updated_at'
+        ]

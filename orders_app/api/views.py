@@ -14,6 +14,7 @@ from django.db import models
 class OrderListCreateView(generics.ListCreateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
+    pagination_class = None
     authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
