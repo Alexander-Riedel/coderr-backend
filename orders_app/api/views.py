@@ -9,6 +9,8 @@ from orders_app.api.serializers import OrderSerializer
 
 from django.contrib.auth.models import User
 from django.db import models
+from django.shortcuts import get_object_or_404
+
 
 # --- List & Create: /api/orders/ ---
 class OrderListCreateView(generics.ListCreateAPIView):
@@ -97,7 +99,10 @@ class OrderCountView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, business_user_id):
-        count = Order.objects.filter(business_user_id=business_user_id, status='in_progress').count()
+        # 1) Existenz prüfen
+        business = get_object_or_404(User, id=business_user_id, businessprofile__isnull=False)
+        # 2) Zählen
+        count = Order.objects.filter(business_user=business, status='in_progress').count()
         return Response({"order_count": count})
 
 class CompletedOrderCountView(APIView):
@@ -105,5 +110,16 @@ class CompletedOrderCountView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, business_user_id):
-        count = Order.objects.filter(business_user_id=business_user_id, status='completed').count()
-        return Response({"completed_order_count": count})
+        # 1) Prüfen, ob es ein BusinessProfile für diese user_id gibt – sonst 404
+        get_object_or_404(BusinessProfile, user_id=business_user_id)
+
+        # 2) Anzahl abgeschlossener Bestellungen zählen
+        count = Order.objects.filter(
+            business_user_id=business_user_id,
+            status='completed'
+        ).count()
+
+        return Response(
+            {"completed_order_count": count},
+            status=status.HTTP_200_OK
+        )
