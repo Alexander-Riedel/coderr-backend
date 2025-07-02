@@ -28,10 +28,10 @@ class OfferListCreateView(generics.ListCreateAPIView):
     GET  /api/offers/     → Liste aller Offers (paginiert, filter-, search-, ordering-Parameter)
     POST /api/offers/     → Neues Offer anlegen (min. 3 Details, nur BusinessUser)
     """
-    queryset = Offer.objects.all()
+    queryset = Offer.objects.all().order_by('-updated_at')
     serializer_class = OfferSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes = []  # per get_permissions()
+    permission_classes = []
     pagination_class = OfferPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['user']
@@ -107,11 +107,12 @@ class OfferRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     """
     queryset = Offer.objects.all()
     authentication_classes = [TokenAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
 
-    def get_permissions(self):
-        if self.request.method in ('PATCH', 'DELETE'):
-            return [permissions.IsAuthenticated()]
-        return [permissions.AllowAny()]
+    # def get_permissions(self):
+    #     if self.request.method in ('PATCH', 'DELETE'):
+    #         return [permissions.IsAuthenticated()]
+    #     return [permissions.AllowAny()]
 
     def get_serializer_class(self):
         # Für GET könnte hier OfferRetrieveSerializer stehen,
@@ -193,4 +194,5 @@ class OfferDetailRetrieveView(generics.RetrieveAPIView):
     """
     queryset = OfferDetail.objects.all()
     serializer_class = OfferDetailSerializer
-    permission_classes = [permissions.AllowAny]
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
