@@ -2,13 +2,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Avg
-from reviews_app.models import Review  # <- Passe ggf. den Pfad/Modul an
-from profile_app.models import BusinessProfile  # <- Passe ggf. den Pfad/Modul an
-from offers_app.models import Offer  # <- Passe ggf. den Pfad/Modul an
+from reviews_app.models import Review
+from profile_app.models import BusinessProfile
+from offers_app.models import Offer
 
 
 class BaseInfoView(APIView):
-    permission_classes = []  # kein Login nötig
+    permission_classes = []
 
     def get(self, request):
         try:
