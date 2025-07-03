@@ -30,7 +30,7 @@ class ReviewListCreateView(generics.ListCreateAPIView):
 
         business_user = request.data.get('business_user')
         if Review.objects.filter(business_user_id=business_user, reviewer=request.user).exists():
-            return Response({"detail": "Du hast bereits für dieses Business bewertet."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"detail": "Du hast bereits für dieses Business bewertet."}, status=status.HTTP_400_BAD_REQUEST)
 
         return super().post(request, *args, **kwargs)
 
