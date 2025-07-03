@@ -146,3 +146,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 3,
 }
+
+# wo deine Uploads landen
+MEDIA_ROOT = BASE_DIR / "media"
+
+# wie sie im Browser erreichbar sein sollen
+MEDIA_URL = "/media/"
