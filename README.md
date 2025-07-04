@@ -48,7 +48,7 @@ Authorization: Token <your_token_here>
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/<your-org>/coderr-backend.git
+   git clone https://github.com/Alexander-Riedel/coderr-backend.git
    cd coderr-backend
    ```
 
