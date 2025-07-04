@@ -147,8 +147,8 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 3,
 }
 
-# wo deine Uploads landen
+# upload root
 MEDIA_ROOT = BASE_DIR / "media"
 
-# wie sie im Browser erreichbar sein sollen
+# browser url
 MEDIA_URL = "/media/"

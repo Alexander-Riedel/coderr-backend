@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status, serializers, filters
+from rest_framework import generics, permissions, status, filters
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -11,27 +11,32 @@ from profile_app.models import BusinessProfile
 
 
 class OfferPagination(PageNumberPagination):
+    """
+    Custom pagination class allowing client to set page size via 'page_size' query parameter.
+    """
     page_size_query_param = 'page_size'
 
 
 class IsBusinessUser(permissions.BasePermission):
-    """Nur business-Profile dürfen Offers anlegen."""
+    """
+    Permission class to allow only business users to create or modify offers.
+
+    Checks if the requesting user has an associated BusinessProfile.
+    """
     def has_permission(self, request, view):
         return BusinessProfile.objects.filter(user=request.user).exists()
 
 
-# -------------------------------------------------------------------
-# 1) LIST + CREATE /api/offers/   (GET & POST)
-# -------------------------------------------------------------------
 class OfferListCreateView(generics.ListCreateAPIView):
     """
-    GET  /api/offers/     → Liste aller Offers (paginiert, filter-, search-, ordering-Parameter)
-    POST /api/offers/     → Neues Offer anlegen (min. 3 Details, nur BusinessUser)
+    GET  /api/offers/ → List all offers, with pagination, filtering, search, and ordering support.
+    POST /api/offers/ → Create a new offer (requires authentication and business user),
+                        with minimum of 3 detail items.
     """
     queryset = Offer.objects.all().order_by('-updated_at')
     serializer_class = OfferSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes = []
+    permission_classes = [permissions.AllowAny]
     pagination_class = OfferPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['user']
@@ -39,50 +44,69 @@ class OfferListCreateView(generics.ListCreateAPIView):
     ordering_fields = ['updated_at']
 
     def get_permissions(self):
+        """
+        Dynamically assign permissions: only authenticated business users may POST.
+        """
         if self.request.method == 'POST':
             return [permissions.IsAuthenticated(), IsBusinessUser()]
         return [permissions.AllowAny()]
 
     def get_queryset(self):
+        """
+        Optionally filter queryset by creator_id, min_price, max_delivery_time, search, and ordering.
+        """
         qs = super().get_queryset()
         params = self.request.query_params
 
+        # Filter by creator user ID
         if creator := params.get('creator_id'):
             qs = qs.filter(user_id=creator)
+        # Filter by minimum detail price
         if minp := params.get('min_price'):
             qs = qs.filter(details__price__gte=minp)
+        # Filter by maximum delivery time
         if maxt := params.get('max_delivery_time'):
             qs = qs.filter(details__delivery_time_in_days__lte=maxt)
+        # Search in title or description
         if search := params.get('search'):
             qs = qs.filter(
                 models.Q(title__icontains=search) |
                 models.Q(description__icontains=search)
             )
+        # Apply ordering if provided
         if order := params.get('ordering'):
             qs = qs.order_by(order)
 
         return qs.distinct()
 
     def create(self, request, *args, **kwargs):
+        """
+        Create a new Offer instance along with its OfferDetail items.
+
+        Validates that at least 3 detail entries are provided, assigns current user,
+        and returns the newly created offer with full detail list.
+        """
         data = request.data.copy()
         data['user'] = request.user.id
         details = data.get('details', [])
+
+        # Ensure at least three detail objects
         if not isinstance(details, list) or len(details) < 3:
             return Response(
-                {"details": "Ein Angebot muss mindestens 3 Details enthalten."},
+                {"details": "An offer must include at least 3 detail items."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 1) Offer anlegen
+        # Serialize and save the Offer
         serializer = OfferSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         offer = serializer.save(user=request.user)
 
-        # 2) Detail-Instanzen anlegen
+        # Create OfferDetail entries
         for detail_data in details:
             OfferDetail.objects.create(offer=offer, **detail_data)
 
-        # 3) Kompletten POST-Response manuell aufbauen
+        # Build full response including details
         full_details = OfferDetail.objects.filter(offer=offer)
         detail_data = OfferDetailSerializer(full_details, many=True).data
 
@@ -96,72 +120,72 @@ class OfferListCreateView(generics.ListCreateAPIView):
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
-# -------------------------------------------------------------------
-# 2) RETRIEVE / PATCH / DELETE  /api/offers/{pk}/
-# -------------------------------------------------------------------
 class OfferRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     """
-    GET    /api/offers/{id}/   → Detail-Ansicht (keine Änderung hier)
-    PATCH  /api/offers/{id}/   → Patch + manuelle Response
-    DELETE /api/offers/{id}/   → Löschen
+    GET    /api/offers/{id}/   → Retrieve offer details.
+    PATCH  /api/offers/{id}/   → Update main fields and optional details (only creator).
+    DELETE /api/offers/{id}/   → Delete the offer (only creator).
     """
     queryset = Offer.objects.all()
     authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
-    # def get_permissions(self):
-    #     if self.request.method in ('PATCH', 'DELETE'):
-    #         return [permissions.IsAuthenticated()]
-    #     return [permissions.AllowAny()]
-
     def get_serializer_class(self):
-        # Für GET könnte hier OfferRetrieveSerializer stehen,
-        # wir behandeln PATCH und DELETE gesondert
+        """
+        Return the serializer class for this view. Customize if needed.
+        """
         return OfferSerializer
 
     def patch(self, request, *args, **kwargs):
+        """
+        Partially update the Offer and its related details.
+
+        Only the original creator may apply changes. Validates detail list if provided.
+        """
         offer = self.get_object()
 
-        # Nur der Ersteller darf patchen
+        # Permission check: only creator
         if offer.user != request.user:
             return Response(
-                {"detail": "Nur der Ersteller darf dieses Angebot bearbeiten."},
+                {"detail": "Only the creator may edit this offer."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 1) Hauptfelder patchen
+        # Update main fields
         main_serializer = OfferSerializer(offer, data=request.data, partial=True)
         main_serializer.is_valid(raise_exception=True)
         main_serializer.save()
 
-        # 2) Details updaten, falls geliefert
+        # Update related OfferDetail entries if provided
         details_data = request.data.get('details')
         if details_data is not None:
             if not isinstance(details_data, list):
                 return Response(
-                    {"details": "Erwarte eine Liste von Details."},
+                    {"details": "Expected a list of detail objects."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             for d in details_data:
+                # Identify detail by offer_type
                 offer_type = d.get('offer_type')
                 if not offer_type:
                     return Response(
-                        {"offer_type": "offer_type zum Identifizieren erforderlich."},
+                        {"offer_type": "offer_type field required to identify detail."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
                 try:
                     det = OfferDetail.objects.get(offer=offer, offer_type=offer_type)
                 except OfferDetail.DoesNotExist:
                     return Response(
-                        {"details": f"Kein Detail für offer_type '{offer_type}' gefunden."},
+                        {"details": f"No detail found for offer_type '{offer_type}'."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
+                # Update fields on the detail object
                 for field in ['title', 'revisions', 'delivery_time_in_days', 'price', 'features']:
                     if field in d:
                         setattr(det, field, d[field])
                 det.save()
 
-        # 3) Manuelle Response: nur die geforderten Felder
+        # Rebuild response with updated details
         full_details = OfferDetail.objects.filter(offer=offer)
         detail_data = OfferDetailSerializer(full_details, many=True).data
 
@@ -175,22 +199,23 @@ class OfferRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
+        """
+        Delete the Offer instance. Only the creator may delete.
+        """
         offer = self.get_object()
         if offer.user != request.user:
             return Response(
-                {"detail": "Nur der Ersteller darf dieses Angebot löschen."},
+                {"detail": "Only the creator may delete this offer."},
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().delete(request, *args, **kwargs)
 
 
-# -------------------------------------------------------------------
-# 3) RETRIEVE EINZELNES OfferDetail
-# -------------------------------------------------------------------
 class OfferDetailRetrieveView(generics.RetrieveAPIView):
     """
-    GET /api/offerdetails/{id}/
-    Einzelnes OfferDetail (Features, price, delivery_time_in_days, offer_type)
+    GET /api/offerdetails/{id}/ → Retrieve a single OfferDetail instance.
+
+    Returns fields: features, price, delivery_time_in_days, and offer_type.
     """
     queryset = OfferDetail.objects.all()
     serializer_class = OfferDetailSerializer

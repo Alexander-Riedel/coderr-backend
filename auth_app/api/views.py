@@ -9,7 +9,17 @@ from .serializers import RegistrationSerializer
 
 
 class RegistrationView(APIView):
+    """
+    API endpoint for registering a new user. Creates a Django User, associated profile,
+    and authentication token.
+    """
     def post(self, request):
+        """
+        Handle user registration.
+
+        Expects 'username', 'email', 'password', and 'type' in request.data.
+        Blocks reserved usernames, creates user and profile, and returns an auth token.
+        """
         serializer = RegistrationSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -20,16 +30,23 @@ class RegistrationView(APIView):
         password = data["password"]
         user_type = data["type"]
 
-        # User erstellen
+        # ---- Block reserved guest usernames ----
+        if username in ["andrey", "kevin"]:
+            return Response(
+                {"error": "This username is reserved."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Create the new Django user
         user = User.objects.create_user(username=username, email=email, password=password)
 
-        # Profil anlegen
+        # Create corresponding profile based on user_type
         if user_type == "customer":
             CustomerProfile.objects.create(user=user, type="customer")
         else:
             BusinessProfile.objects.create(user=user, type="business")
 
-        # Token generieren
+        # Generate or retrieve authentication token
         token, _ = Token.objects.get_or_create(user=user)
 
         return Response({
@@ -41,13 +58,55 @@ class RegistrationView(APIView):
 
 
 class LoginView(APIView):
+    """
+    API endpoint for user login. Authenticates credentials or provisions guest accounts,
+    then returns an authentication token.
+    """
     def post(self, request):
+        """
+        Handle user login.
+
+        Expects 'username' and 'password' in request.data.
+        Supports guest login for reserved usernames.
+        Returns auth token and basic user info on success.
+        """
         username = request.data.get('username')
         password = request.data.get('password')
 
         if not username or not password:
-            return Response({'error': 'Benutzername und Passwort erforderlich'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Username and password required'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # ---- Guest login logic ----
+        GUEST_LOGINS = {
+            "andrey": {
+                "password": "asdasd",
+                "type": "customer",
+                "email": "andrey@guest.de"
+            },
+            "kevin": {
+                "password": "asdasd24",
+                "type": "business",
+                "email": "kevin@guest.de"
+            }
+        }
+        if username in GUEST_LOGINS:
+            try:
+                # Retrieve existing guest user
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                # Create new guest user if not exists
+                user = User.objects.create_user(
+                    username=username,
+                    password=GUEST_LOGINS[username]["password"],
+                    email=GUEST_LOGINS[username]["email"]
+                )
+                # Create associated profile
+                if GUEST_LOGINS[username]["type"] == "customer":
+                    CustomerProfile.objects.create(user=user, type="customer", username=username)
+                else:
+                    BusinessProfile.objects.create(user=user, type="business", username=username)
+
+        # ---- Standard authentication ----
         user = authenticate(username=username, password=password)
 
         if user is not None:
@@ -59,4 +118,4 @@ class LoginView(APIView):
                 'user_id': user.id
             }, status=status.HTTP_200_OK)
         else:
-            return Response({'error': 'Ungültige Anmeldedaten'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)

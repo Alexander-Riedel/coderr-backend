@@ -5,7 +5,11 @@ from profile_app.models import BusinessProfile, CustomerProfile
 
 class OfferDetailLinkSerializer(serializers.ModelSerializer):
     """
-    Liefert nur ID und absolute URL für jedes OfferDetail (für Listen/Überblick).
+    Provides only the ID and absolute URL for each OfferDetail, suitable for list overviews.
+
+    Fields:
+        id: Unique identifier of the OfferDetail.
+        url: Full URI to retrieve the OfferDetail detail view.
     """
     url = serializers.SerializerMethodField()
 
@@ -14,16 +18,27 @@ class OfferDetailLinkSerializer(serializers.ModelSerializer):
         fields = ['id', 'url']
 
     def get_url(self, obj):
+        """
+        Construct the absolute URL for the OfferDetail endpoint.
+
+        Args:
+            obj (OfferDetail): The OfferDetail instance.
+
+        Returns:
+            str: Absolute URL for retrieving this OfferDetail.
+        """
         request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(f"/api/offerdetails/{obj.id}/")
-        return f"/api/offerdetails/{obj.id}/"
+        path = f"/api/offerdetails/{obj.id}/"
+        return request.build_absolute_uri(path) if request else path
 
 
 class OfferDetailSerializer(serializers.ModelSerializer):
     """
-    Volle Darstellung eines OfferDetail, z.B. für PATCH-Response.
+    Full representation of an OfferDetail for detailed views and update responses.
+
+    Includes all relevant fields of the OfferDetail model.
     """
+
     class Meta:
         model = OfferDetail
         fields = [
@@ -39,10 +54,12 @@ class OfferDetailSerializer(serializers.ModelSerializer):
 
 class OfferSerializer(serializers.ModelSerializer):
     """
-    Serializer für Create/Update und Listen-Views.
-    - details: nur Link-Version
-    - user_details: kurzinfo zum Ersteller
-    - min_price / min_delivery_time: erste bzw. günstigste/r schnellste Detail-Option
+    Serializer for Offers in list, create, and update endpoints.
+
+    - details: List of related OfferDetailLinkSerializer items (read-only).
+    - min_price: Lowest price among related details.
+    - min_delivery_time: Shortest delivery time among related details.
+    - user_details: Basic info about the offer creator from their profile.
     """
     details = OfferDetailLinkSerializer(many=True, read_only=True)
     min_price = serializers.SerializerMethodField()
@@ -66,17 +83,43 @@ class OfferSerializer(serializers.ModelSerializer):
         ]
 
     def get_min_price(self, obj):
-        if obj.details.exists():
-            return float(obj.details.order_by('price').first().price)
-        return None
+        """
+        Compute the lowest price among this Offer's details.
+
+        Args:
+            obj (Offer): The Offer instance.
+
+        Returns:
+            float or None: Minimum price, or None if no details exist.
+        """
+        details = obj.details.order_by('price')
+        return float(details.first().price) if details.exists() else None
 
     def get_min_delivery_time(self, obj):
-        if obj.details.exists():
-            return obj.details.order_by('delivery_time_in_days').first().delivery_time_in_days
-        return None
+        """
+        Compute the shortest delivery time among this Offer's details.
+
+        Args:
+            obj (Offer): The Offer instance.
+
+        Returns:
+            int or None: Minimum delivery_time_in_days, or None if no details exist.
+        """
+        details = obj.details.order_by('delivery_time_in_days')
+        return details.first().delivery_time_in_days if details.exists() else None
 
     def get_user_details(self, obj):
-        # Prüfe Business-Profile zuerst, dann Customer
+        """
+        Retrieve brief profile information for the offer creator.
+
+        Checks for a BusinessProfile first, then CustomerProfile.
+
+        Args:
+            obj (Offer): The Offer instance.
+
+        Returns:
+            dict: Contains 'first_name', 'last_name', 'username', or empty dict if no profile.
+        """
         profile = (
             BusinessProfile.objects.filter(user=obj.user).first() or
             CustomerProfile.objects.filter(user=obj.user).first()
@@ -85,17 +128,16 @@ class OfferSerializer(serializers.ModelSerializer):
             return {
                 'first_name': profile.first_name,
                 'last_name': profile.last_name,
-                'username': profile.username
+                'username': profile.username,
             }
         return {}
 
 
 class OfferRetrieveSerializer(serializers.ModelSerializer):
     """
-    Serializer für Detail-View (GET /api/offers/{id}/).
-    - details: nur Link-Version
-    - min_price / min_delivery_time
-    (kein user_details hier, weil nicht gefordert)
+    Serializer for detailed Offer view (GET /api/offers/{id}/).
+
+    Similar to OfferSerializer but excludes user_details.
     """
     details = OfferDetailLinkSerializer(many=True, read_only=True)
     min_price = serializers.SerializerMethodField()
@@ -117,11 +159,15 @@ class OfferRetrieveSerializer(serializers.ModelSerializer):
         ]
 
     def get_min_price(self, obj):
-        if obj.details.exists():
-            return float(obj.details.order_by('price').first().price)
-        return None
+        """
+        Compute the lowest price among this Offer's details.
+        """
+        details = obj.details.order_by('price')
+        return float(details.first().price) if details.exists() else None
 
     def get_min_delivery_time(self, obj):
-        if obj.details.exists():
-            return obj.details.order_by('delivery_time_in_days').first().delivery_time_in_days
-        return None
+        """
+        Compute the shortest delivery time among this Offer's details.
+        """
+        details = obj.details.order_by('delivery_time_in_days')
+        return details.first().delivery_time_in_days if details.exists() else None
