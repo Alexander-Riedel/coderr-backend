@@ -76,39 +76,7 @@ class LoginView(APIView):
         if not username or not password:
             return Response({'error': 'Username and password required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # ---- Guest login logic ----
-        GUEST_LOGINS = {
-            "andrey": {
-                "password": "asdasd",
-                "type": "customer",
-                "email": "andrey@guest.de"
-            },
-            "kevin": {
-                "password": "asdasd24",
-                "type": "business",
-                "email": "kevin@guest.de"
-            }
-        }
-        if username in GUEST_LOGINS:
-            try:
-                # Retrieve existing guest user
-                user = User.objects.get(username=username)
-            except User.DoesNotExist:
-                # Create new guest user if not exists
-                user = User.objects.create_user(
-                    username=username,
-                    password=GUEST_LOGINS[username]["password"],
-                    email=GUEST_LOGINS[username]["email"]
-                )
-                # Create associated profile
-                if GUEST_LOGINS[username]["type"] == "customer":
-                    CustomerProfile.objects.create(user=user, type="customer", username=username)
-                else:
-                    BusinessProfile.objects.create(user=user, type="business", username=username)
-
-        # ---- Standard authentication ----
         user = authenticate(username=username, password=password)
-
         if user is not None:
             token, _ = Token.objects.get_or_create(user=user)
             return Response({
