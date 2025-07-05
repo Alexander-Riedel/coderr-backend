@@ -2,6 +2,7 @@ from rest_framework import generics, permissions, status, filters
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from django.db import models
 
@@ -61,18 +62,30 @@ class OfferListCreateView(generics.ListCreateAPIView):
         # Filter by creator user ID
         if creator := params.get('creator_id'):
             qs = qs.filter(user_id=creator)
+
         # Filter by minimum detail price
         if minp := params.get('min_price'):
-            qs = qs.filter(details__price__gte=minp)
+            try:
+                minp_val = float(minp)
+            except ValueError:
+                raise ValidationError({"min_price": "Must be a number."})
+            qs = qs.filter(details__price__gte=minp_val)
+
         # Filter by maximum delivery time
         if maxt := params.get('max_delivery_time'):
-            qs = qs.filter(details__delivery_time_in_days__lte=maxt)
+            try:
+                maxt_val = int(maxt)
+            except ValueError:
+                raise ValidationError({"max_delivery_time": "Must be an integer."})
+            qs = qs.filter(details__delivery_time_in_days__lte=maxt_val)
+
         # Search in title or description
         if search := params.get('search'):
             qs = qs.filter(
                 models.Q(title__icontains=search) |
                 models.Q(description__icontains=search)
             )
+
         # Apply ordering if provided
         if order := params.get('ordering'):
             qs = qs.order_by(order)
