@@ -22,11 +22,7 @@ class OrderSerializer(serializers.ModelSerializer):
     title = serializers.CharField(read_only=True)
     revisions = serializers.IntegerField(read_only=True)
     delivery_time_in_days = serializers.IntegerField(read_only=True)
-    price = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        read_only=True
-    )
+    price = serializers.IntegerField()
     features = serializers.ListField(
         child=serializers.CharField(),
         read_only=True

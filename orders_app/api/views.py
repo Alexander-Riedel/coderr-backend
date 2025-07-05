@@ -40,48 +40,44 @@ class OrderListCreateView(generics.ListCreateAPIView):
         ).order_by('-created_at')
 
     def create(self, request, *args, **kwargs):
-        """
-        Create a new Order based on an OfferDetail.
-        - Only users with a CustomerProfile may create an order.
-        - Expects 'offer_detail_id' and optional 'status' in request data.
-        """
         user = request.user
 
-        # Ensure only customers can place orders
+        # Nur Kunden dürfen bestellen
         if not CustomerProfile.objects.filter(user=user).exists():
             return Response(
                 {"detail": "Only customers may create orders."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        offer_detail_id = request.data.get('offer_detail_id')
-        if not offer_detail_id:
+        # offer_detail_id validieren
+        od_id = request.data.get('offer_detail_id')
+        if od_id is None:
             return Response(
-                {"detail": "Field 'offer_detail_id' is required."},
+                {"offer_detail_id": "This field is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            od_id = int(od_id)
+        except (TypeError, ValueError):
+            return Response(
+                {"offer_detail_id": "Must be an integer."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Fetch the OfferDetail and related Offer & user
-        try:
-            offer_detail = OfferDetail.objects.select_related('offer', 'offer__user') \
-                                              .get(id=offer_detail_id)
-        except OfferDetail.DoesNotExist:
-            return Response(
-                {"detail": "OfferDetail not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        # OfferDetail laden oder 404
+        offer_detail = get_object_or_404(OfferDetail, id=od_id)
 
-        # Create the Order using fields from the OfferDetail
+        # Bestellung anlegen
         order = Order.objects.create(
-            customer_user=user,
-            business_user=offer_detail.offer.user,
-            title=offer_detail.title,
-            revisions=offer_detail.revisions,
-            delivery_time_in_days=offer_detail.delivery_time_in_days,
-            price=offer_detail.price,
-            features=offer_detail.features,
-            offer_type=offer_detail.offer_type,
-            status=request.data.get('status', 'in_progress'),
+            customer_user          = user,
+            business_user          = offer_detail.offer.user,
+            title                  = offer_detail.title,
+            revisions              = offer_detail.revisions,
+            delivery_time_in_days  = offer_detail.delivery_time_in_days,
+            price                  = offer_detail.price,
+            features               = offer_detail.features,
+            offer_type             = offer_detail.offer_type,
+            status                 = 'in_progress',
         )
 
         serializer = self.get_serializer(order)
