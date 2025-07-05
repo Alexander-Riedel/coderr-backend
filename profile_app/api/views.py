@@ -77,7 +77,7 @@ class UserProfileDetailView(APIView):
         # Add email and account creation timestamp
         user = profile.user
         data['email'] = user.email or ''
-        data['created_at'] = user.date_joined.isoformat()
+        data['created_at'] = user.date_joined.strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Ensure optional text fields are non-null strings
         for field in [
@@ -129,7 +129,7 @@ class UserProfileDetailView(APIView):
 
             data = serializer.data
             data['email'] = profile.user.email
-            data['created_at'] = profile.user.date_joined.isoformat()
+            data['created_at'] = profile.user.date_joined.strftime('%Y-%m-%dT%H:%M:%SZ')
 
             # Normalize optional fields
             for field in [
