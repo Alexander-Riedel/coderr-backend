@@ -192,17 +192,8 @@ class CustomerProfileListView(ListAPIView):
         Override to ensure optional profile fields are always non-null strings.
         """
         response = super().list(request, *args, **kwargs)
-        results = (
-            response.data
-            if isinstance(response.data, list)
-            else response.data.get('results', [])
-        )
-        if isinstance(results, list):
-            for item in results:
-                for field in [
-                    'first_name', 'last_name', 'location', 'tel',
-                    'description', 'working_hours'
-                ]:
-                    if item.get(field) is None:
-                        item[field] = ""
+        for item in response.data:
+            for field in ('first_name', 'last_name'):
+                if item.get(field) is None:
+                    item[field] = ""
         return response

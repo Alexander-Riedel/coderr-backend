@@ -55,10 +55,11 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(default='')
     last_name = serializers.CharField(default='')
     file = serializers.FileField(required=False, allow_null=True)
-    location = serializers.CharField(default='')
-    tel = serializers.CharField(default='')
-    description = serializers.CharField(default='')
-    working_hours = serializers.CharField(default='')
+    uploaded_at = serializers.DateTimeField(
+        source='user.date_joined',
+        format='%Y-%m-%dT%H:%M:%S',
+        read_only=True
+    )
     type = serializers.CharField(default='customer')
 
     class Meta:
@@ -69,9 +70,6 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'first_name',
             'last_name',
             'file',
-            'location',
-            'tel',
-            'description',
-            'working_hours',
+            'uploaded_at',
             'type',
         ]
