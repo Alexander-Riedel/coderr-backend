@@ -102,23 +102,32 @@ class OrderRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         """
         order = self.get_object()
         user = request.user
+        data = request.data
 
         # Only the business participant may change the order status
-        if 'status' in request.data and user != order.business_user:
+        if 'status' in data and user != order.business_user:
             return Response(
                 {"detail": "Only the business user may change the status."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
         # Only 'status' field is writable; all others are read-only
-        allowed_fields = {'status'}
-        if any(field not in allowed_fields for field in request.data.keys()):
+        if any(field not in ('status',) for field in data):
             return Response(
                 {"detail": "Only the 'status' field may be updated."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # Check valide status
+        valid_statuses = ['in_progress', 'completed', 'cancelled']
+        new_status = data.get('status')
+        if new_status not in valid_statuses:
+            return Response(
+                {"status": f"Ungültiger status. Erwartet einer von {valid_statuses}."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        serializer = self.get_serializer(order, data=request.data, partial=True)
+        serializer = self.get_serializer(order, data={'status': new_status}, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
