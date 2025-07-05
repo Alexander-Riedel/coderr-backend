@@ -57,10 +57,7 @@ class OfferDetail(models.Model):
     title = models.CharField(max_length=255)
     revisions = models.IntegerField()
     delivery_time_in_days = models.IntegerField()
-    price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2
-    )
+    price = models.IntegerField()
     features = models.JSONField(default=list)
     offer_type = models.CharField(max_length=50)
 

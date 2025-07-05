@@ -93,7 +93,7 @@ class OfferSerializer(serializers.ModelSerializer):
             float or None: Minimum price, or None if no details exist.
         """
         details = obj.details.order_by('price')
-        return float(details.first().price) if details.exists() else None
+        return int(details.first().price) if details.exists() else None
 
     def get_min_delivery_time(self, obj):
         """
