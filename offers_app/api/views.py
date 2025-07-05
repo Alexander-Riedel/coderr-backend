@@ -3,7 +3,6 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
-from django.http import Http404
 from rest_framework.pagination import PageNumberPagination
 from django.db import models
 
@@ -143,17 +142,6 @@ class OfferRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Offer.objects.all()
     authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-        """
-        Override, um fehlende Objekte als Bad Request (400) statt Not Found (404)
-        zurückzugeben.
-        """
-        try:
-            return super().get_object()
-        except Http404:
-            # wandeln wir Http404 in einen 400 Bad Request um
-            raise ValidationError({"detail": "Ungültige Angebots-ID."})
 
     def get_serializer_class(self):
         """
